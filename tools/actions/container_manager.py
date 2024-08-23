@@ -64,33 +64,6 @@ def set_permissions(args, perm_list=None, mode="777"):
             command = ["chmod", mode, "-R", path]
             tools.helpers.run.user(args, command, check=False)
 
-    # Nodes list
-    if not perm_list:
-        perm_list = [
-            "/dev/ashmem",
-
-            # sw_sync for HWC
-            "/dev/sw_sync",
-            "/sys/kernel/debug/sync/sw_sync",
-
-            # Media
-            "/dev/Vcodec",
-            "/dev/MTK_SMI",
-            "/dev/mdp_sync",
-            "/dev/mtk_cmdq",
-
-            # Graphics
-            "/dev/dri",
-            "/dev/graphics",
-            "/dev/pvr_sync",
-            "/dev/ion",
-        ]
-
-        # Framebuffers
-        perm_list.extend(glob.glob("/dev/fb*"))
-        # Videos
-        perm_list.extend(glob.glob("/dev/video*"))
-
     for path in perm_list:
         chmod(path, mode)
 
@@ -137,41 +110,6 @@ def do_start(args, session):
                "/data/scripts/waydroid-net.sh", "start"]
     tools.helpers.run.user(args, command)
 
-    # Sensors
-    if which("waydroid-sensord"):
-        tools.helpers.run.user(
-            args, ["waydroid-sensord", "/dev/" + args.HWBINDER_DRIVER], output="background")
-
-    # Cgroup hacks
-    if which("start"):
-        command = ["start", "cgroup-lite"]
-        tools.helpers.run.user(args, command, check=False)
-
-    # Keep schedtune around in case nesting is supported
-    if os.path.ismount("/sys/fs/cgroup/schedtune"):
-        try:
-            os.mkdir("/sys/fs/cgroup/schedtune/probe0")
-            os.mkdir("/sys/fs/cgroup/schedtune/probe0/probe1")
-        except:
-            command = ["umount", "-l", "/sys/fs/cgroup/schedtune"]
-            tools.helpers.run.user(args, command, check=False)
-        finally:
-            if os.path.exists("/sys/fs/cgroup/schedtune/probe0/probe1"):
-                os.rmdir("/sys/fs/cgroup/schedtune/probe0/probe1")
-            if os.path.exists("/sys/fs/cgroup/schedtune/probe0"):
-                os.rmdir("/sys/fs/cgroup/schedtune/probe0")
-
-    #TODO: remove NFC hacks
-    if which("stop"):
-        command = ["stop", "nfcd"]
-        tools.helpers.run.user(args, command, check=False)
-    elif which("systemctl") and (tools.helpers.run.user(args, ["systemctl", "is-active", "-q", "nfcd"], check=False) == 0):
-        command = ["systemctl", "stop", "nfcd"]
-        tools.helpers.run.user(args, command, check=False)
-
-    # Set permissions
-    set_permissions(args)
-
     # Create session-specific LXC config file
     helpers.lxc.generate_session_lxc_config(args, session)
     # Backwards compatibility
@@ -183,11 +121,8 @@ def do_start(args, session):
     # Mount rootfs
     cfg = tools.config.load(args)
     helpers.images.mount_rootfs(args, cfg["waydroid"]["images_path"], session)
-
     helpers.protocol.set_aidl_version(args)
-
     helpers.lxc.start(args)
-    services.hardware_manager.start(args)
 
     args.session = session
 
@@ -204,22 +139,6 @@ def stop(args, quit_session=True):
         command = [tools.config.tools_src +
                    "/data/scripts/waydroid-net.sh", "stop"]
         tools.helpers.run.user(args, command, check=False)
-
-        #TODO: remove NFC hacks
-        if which("start"):
-            command = ["start", "nfcd"]
-            tools.helpers.run.user(args, command, check=False)
-        elif which("systemctl") and (tools.helpers.run.user(args, ["systemctl", "is-enabled", "-q", "nfcd"], check=False) == 0):
-            command = ["systemctl", "start", "nfcd"]
-            tools.helpers.run.user(args, command, check=False)
-
-        # Sensors
-        if which("waydroid-sensord"):
-            command = ["pidof", "waydroid-sensord"]
-            pid = tools.helpers.run.user(args, command, check=False, output_return=True).strip()
-            if pid:
-                command = ["kill", "-9", pid]
-                tools.helpers.run.user(args, command, check=False)
 
         # Umount rootfs
         helpers.images.umount_rootfs(args)
