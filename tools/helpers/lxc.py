@@ -87,7 +87,7 @@ def generate_nodes_lxc_config(args):
     make_entry("/sys/module/lowmemorykiller", options="bind,create=dir,optional 0 0")
 
     # Mount host permissions
-    make_entry(tools.config.defaults["host_perms"],
+    make_entry(tools.config.defaults(args, "host_perms"),
                "vendor/etc/host-permissions", options="bind,optional 0 0")
 
     # Necessary sw_sync node for HWC
@@ -136,7 +136,7 @@ def get_apparmor_status(args):
     return enabled
 
 def set_lxc_config(args):
-    lxc_path = tools.config.defaults["lxc"] + "/waydroid"
+    lxc_path = tools.config.defaults(args, "lxc") + container_path(args)
     lxc_ver = get_lxc_version(args)
     if lxc_ver == 0:
         raise OSError("LXC is not installed")
@@ -155,7 +155,15 @@ def set_lxc_config(args):
 
     command = ["mkdir", "-p", lxc_path]
     tools.helpers.run.user(args, command)
-    command = ["sh", "-c", "cat {} > \"{}\"".format(' '.join('"{0}"'.format(w) for w in config_snippets), lxc_path + "/config")]
+    
+    # edit config to be session specific:
+    include_config_nodes = "lxc.include = " + lxc_path + "/config_nodes"
+    include_config_session = "lxc.include = " + lxc_path + "/config_session"
+    rootfs_path = "lxc.rootfs.path = " + tools.config.defaults(args, "rootfs")
+    uts_name = "lxc.uts.name = " + container_name(args)
+    config_edits = f"\"{include_config_nodes}\n{include_config_session}\n{rootfs_path}\n{uts_name}\n\""
+
+    command = ["sh", "-c", "(cat {}; echo {}) > \"{}\"".format(' '.join('"{0}"'.format(w) for w in config_snippets), config_edits, lxc_path + "/config")]
     tools.helpers.run.user(args, command)
     command = ["sed", "-i", "s/LXCARCH/{}/".format(platform.machine()), lxc_path + "/config"]
     tools.helpers.run.user(args, command)
@@ -190,23 +198,23 @@ def generate_session_lxc_config(args, session):
         return add_node_entry(nodes, src, dist, mnt_type, options, check=False)
 
     # Make sure XDG_RUNTIME_DIR exists
-    if not make_entry("tmpfs", tools.config.defaults["container_xdg_runtime_dir"], options="create=dir 0 0"):
+    if not make_entry("tmpfs", tools.config.defaults(args, "container_xdg_runtime_dir"), options="create=dir 0 0"):
         raise OSError("Failed to create XDG_RUNTIME_DIR mount point")
 
     wayland_host_socket = os.path.realpath(os.path.join(session["xdg_runtime_dir"], session["wayland_display"]))
-    wayland_container_socket = os.path.realpath(os.path.join(tools.config.defaults["container_xdg_runtime_dir"], tools.config.defaults["container_wayland_display"]))
+    wayland_container_socket = os.path.realpath(os.path.join(tools.config.defaults(args, "container_xdg_runtime_dir"), tools.config.defaults(args, "container_wayland_display")))
     if not make_entry(wayland_host_socket, wayland_container_socket[1:]):
         raise OSError("Failed to bind Wayland socket")
 
     # Make sure PULSE_RUNTIME_DIR exists
     pulse_host_socket = os.path.join(session["pulse_runtime_path"], "native")
-    pulse_container_socket = os.path.join(tools.config.defaults["container_pulse_runtime_path"], "native")
+    pulse_container_socket = os.path.join(tools.config.defaults(args, "container_pulse_runtime_path"), "native")
     make_entry(pulse_host_socket, pulse_container_socket[1:])
 
     if not make_entry(session["waydroid_data"], "data", options="rbind 0 0"):
         raise OSError("Failed to bind userdata")
 
-    lxc_path = tools.config.defaults["lxc"] + "/waydroid"
+    lxc_path = tools.config.defaults(args, "lxc") + container_path(args)
     config_nodes_tmp_path = args.work + "/config_session"
     config_nodes = open(config_nodes_tmp_path, "w")
     for node in nodes:
@@ -303,7 +311,7 @@ def make_base_props(args):
         opengles = "196609"
     props.append("ro.opengles.version=" + opengles)
 
-    if args.images_path not in tools.config.defaults["preinstalled_images_paths"]:
+    if args.images_path not in tools.config.defaults(args, "preinstalled_images_paths"):
         props.append("waydroid.system_ota=" + args.system_ota)
         props.append("waydroid.vendor_ota=" + args.vendor_ota)
     else:
@@ -346,8 +354,8 @@ def make_base_props(args):
 
 
 def setup_host_perms(args):
-    if not os.path.exists(tools.config.defaults["host_perms"]):
-        os.mkdir(tools.config.defaults["host_perms"])
+    if not os.path.exists(tools.config.defaults(args, "host_perms")):
+        os.mkdir(tools.config.defaults(args, "host_perms"))
 
     treble = tools.helpers.props.host_get(args, "ro.treble.enabled")
     if treble != "true":
@@ -371,10 +379,10 @@ def setup_host_perms(args):
                 "/odm/etc/permissions/sku_{}/android.hardware.consumerir.xml".format(sku))
 
     for filename in copy_list:
-        shutil.copy(filename, tools.config.defaults["host_perms"])
+        shutil.copy(filename, tools.config.defaults(args, "host_perms"))
 
 def status(args):
-    command = ["lxc-info", "-P", tools.config.defaults["lxc"], "-n", "waydroid", "-sH"]
+    command = ["lxc-info", "-P", tools.config.defaults(args, "lxc"), "-n", container_name(args), "-sH"]
     try:
         return tools.helpers.run.user(args, command, output_return=True).strip()
     except:
@@ -394,8 +402,8 @@ def wait_for_running(args):
         raise OSError("container failed to start")
 
 def start(args):
-    command = ["lxc-start", "-P", tools.config.defaults["lxc"],
-               "-F", "-n", "waydroid", "--", "/init"]
+    command = ["lxc-start", "-P", tools.config.defaults(args, "lxc"),
+               "-F", "-n", container_name(args), "--", "/init"]
     tools.helpers.run.user(args, command, output="background")
     wait_for_running(args)
     # Workaround lxc-start changing stdout/stderr permissions to 700
@@ -403,16 +411,16 @@ def start(args):
 
 def stop(args):
     command = ["lxc-stop", "-P",
-               tools.config.defaults["lxc"], "-n", "waydroid", "-k"]
+               tools.config.defaults(args, "lxc"), "-n", container_name(args), "-k"]
     tools.helpers.run.user(args, command)
 
 def freeze(args):
-    command = ["lxc-freeze", "-P", tools.config.defaults["lxc"], "-n", "waydroid"]
+    command = ["lxc-freeze", "-P", tools.config.defaults(args, "lxc"), "-n", container_name(args)]
     tools.helpers.run.user(args, command)
 
 def unfreeze(args):
     command = ["lxc-unfreeze", "-P",
-               tools.config.defaults["lxc"], "-n", "waydroid"]
+               tools.config.defaults(args, "lxc"), "-n", container_name(args)]
     tools.helpers.run.user(args, command)
 
 ANDROID_ENV = {
@@ -438,8 +446,8 @@ def shell(args):
     elif state != "RUNNING":
         logging.error("WayDroid container is {}".format(state))
         return
-    command = ["lxc-attach", "-P", tools.config.defaults["lxc"],
-               "-n", "waydroid", "--clear-env"]
+    command = ["lxc-attach", "-P", tools.config.defaults(args, "lxc"),
+               "-n", container_name(args), "--clear-env"]
     command.extend(android_env_attach_options())
     if args.uid!=None:
         command.append("--uid="+str(args.uid))
@@ -486,3 +494,9 @@ def logcat(args):
     args.nocgroup = None
     args.context = None
     shell(args)
+
+def container_name(args):
+    return f"waydroid_{args.session_id}"
+
+def container_path(args):
+    return "/" + container_name(args)

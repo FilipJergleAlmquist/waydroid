@@ -144,6 +144,10 @@ def arguments():
                         help="do not output any log messages")
     parser.add_argument("-w", "--wait", dest="wait_for_init", action="store_true",
                         help="wait for init before running")
+    parser.add_argument("--sid", dest="session_id", default="0",
+                        help="which session to process")
+    parser.add_argument("--num_sessions", dest="num_sessions", type=int, default=1,
+                        help="number of sessions to start")
 
     # Actions
     sub = parser.add_subparsers(title="action", dest="action")

@@ -14,9 +14,9 @@ def load(args):
     if "waydroid" not in cfg:
         cfg["waydroid"] = {}
 
-    for key in tools.config.defaults:
+    for key in tools.config._defaults:
         if key in tools.config.config_keys and key not in cfg["waydroid"]:
-            cfg["waydroid"][key] = str(tools.config.defaults[key])
+            cfg["waydroid"][key] = str(tools.config.defaults(args, key))
 
         # We used to save default values in the config, which can *not* be
         # configured in "waydroid init". That doesn't make sense, we always

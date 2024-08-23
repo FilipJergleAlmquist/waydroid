@@ -4,6 +4,7 @@ import logging
 import os
 from tools import helpers
 import tools.config
+from tools.helpers.lxc import container_path
 
 import sys
 import threading
@@ -16,7 +17,10 @@ import dbus.service
 from gi.repository import GLib
 
 def is_initialized(args):
-    return os.path.isfile(args.config) and os.path.isdir(tools.config.defaults["rootfs"])
+    is_init = os.path.isfile(args.config) and os.path.isdir(tools.config.defaults(args, "rootfs")) 
+    logging.info(f"is initialized: {is_init}")
+    return is_init
+    # return os.path.isfile(args.config) and os.path.isdir(tools.config.defaults(args, "rootfs"))
 
 def get_vendor_type(args):
     vndk_str = helpers.props.host_get(args, "ro.vndk.version")
@@ -35,7 +39,7 @@ def setup_config(args):
     args.arch = helpers.arch.host()
     cfg["waydroid"]["arch"] = args.arch
 
-    preinstalled_images_paths = tools.config.defaults["preinstalled_images_paths"]
+    preinstalled_images_paths = tools.config.defaults(args, "preinstalled_images_paths")
     if not args.images_path:
         for preinstalled_images in preinstalled_images_paths:
             if os.path.isdir(preinstalled_images):
@@ -46,7 +50,7 @@ def setup_config(args):
                     logging.warning("Found directory {} but missing system or vendor image, ignoring...".format(preinstalled_images))
 
     if not args.images_path:
-        args.images_path = tools.config.defaults["images_path"]
+        args.images_path = tools.config.defaults(args, "images_path")
     cfg["waydroid"]["images_path"] = args.images_path
 
     channels_cfg = tools.config.load_channels()
@@ -93,9 +97,9 @@ def setup_config(args):
             args.vendor_type = get_vendor_type(args)
 
     if args.system_ota != cfg["waydroid"].get("system_ota"):
-        cfg["waydroid"]["system_datetime"] = tools.config.defaults["system_datetime"]
+        cfg["waydroid"]["system_datetime"] = tools.config.defaults(args, "system_datetime")
     if args.vendor_ota != cfg["waydroid"].get("vendor_ota"):
-        cfg["waydroid"]["vendor_datetime"] = tools.config.defaults["vendor_datetime"]
+        cfg["waydroid"]["vendor_datetime"] = tools.config.defaults(args, "vendor_datetime")
 
     cfg["waydroid"]["vendor_type"] = args.vendor_type
     cfg["waydroid"]["system_ota"] = args.system_ota
@@ -117,30 +121,32 @@ def init(args):
         if not setup_config(args):
             return
         status = "STOPPED"
-        if os.path.exists(tools.config.defaults["lxc"] + "/waydroid"):
+        if os.path.exists(tools.config.defaults(args, "lxc") + container_path(args)):
             status = helpers.lxc.status(args)
         if status != "STOPPED":
             logging.info("Stopping container")
             try:
                 container = tools.helpers.ipc.DBusContainerService()
-                args.session = container.GetSession()
-                container.Stop(False)
+                args.session = container.GetSession(args.session_id)
+                container.Stop(args.session_id, False)
             except Exception as e:
                 logging.debug(e)
                 tools.actions.container_manager.stop(args)
-        if args.images_path not in tools.config.defaults["preinstalled_images_paths"]:
+        if args.images_path not in tools.config.defaults(args, "preinstalled_images_paths"):
             helpers.images.get(args)
         else:
             helpers.images.remove_overlay(args)
-        if not os.path.isdir(tools.config.defaults["rootfs"]):
-            os.mkdir(tools.config.defaults["rootfs"])
-        if not os.path.isdir(tools.config.defaults["overlay"]):
-            os.mkdir(tools.config.defaults["overlay"])
-            os.mkdir(tools.config.defaults["overlay"]+"/vendor")
-        if not os.path.isdir(tools.config.defaults["overlay_rw"]):
-            os.mkdir(tools.config.defaults["overlay_rw"])
-            os.mkdir(tools.config.defaults["overlay_rw"]+"/system")
-            os.mkdir(tools.config.defaults["overlay_rw"]+"/vendor")
+        if not os.path.isdir(tools.config.defaults(args, "work")):
+            os.mkdir(tools.config.defaults(args, "work"))
+        if not os.path.isdir(tools.config.defaults(args, "rootfs")):
+            os.mkdir(tools.config.defaults(args, "rootfs"))
+        if not os.path.isdir(tools.config.defaults(args, "overlay")):
+            os.mkdir(tools.config.defaults(args, "overlay"))
+            os.mkdir(tools.config.defaults(args, "overlay")+"/vendor")
+        if not os.path.isdir(tools.config.defaults(args, "overlay_rw")):
+            os.mkdir(tools.config.defaults(args, "overlay_rw"))
+            os.mkdir(tools.config.defaults(args, "overlay_rw")+"/system")
+            os.mkdir(tools.config.defaults(args, "overlay_rw")+"/vendor")
         helpers.drivers.probeAshmemDriver(args)
         helpers.lxc.setup_host_perms(args)
         helpers.lxc.set_lxc_config(args)
@@ -148,7 +154,7 @@ def init(args):
         if status != "STOPPED":
             logging.info("Starting container")
             try:
-                container.Start(args.session)
+                container.Start(args.session_id, args.session)
             except Exception as e:
                 logging.debug(e)
                 logging.error("Failed to restart container. Please do so manually.")

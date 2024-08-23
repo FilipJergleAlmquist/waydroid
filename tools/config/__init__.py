@@ -8,6 +8,7 @@ import pwd
 #
 from tools.config.load import load, load_channels
 from tools.config.save import save
+import logging
 
 #
 # Exported variables (internal configuration)
@@ -28,7 +29,7 @@ config_keys = ["arch",
 # Config file/commandline default values
 # $WORK gets replaced with the actual value for args.work (which may be
 # overridden on the commandline)
-defaults = {
+_defaults = {
     "arch": "arm64",
     "work": "/var/lib/waydroid",
     "vendor_type": "MAINLINE",
@@ -44,17 +45,24 @@ defaults = {
     "container_xdg_runtime_dir": "/run/xdg",
     "container_wayland_display": "wayland-0",
 }
-defaults["images_path"] = defaults["work"] + "/images"
-defaults["rootfs"] = defaults["work"] + "/rootfs"
-defaults["overlay"] = defaults["work"] + "/overlay"
-defaults["overlay_rw"] = defaults["work"] + "/overlay_rw"
-defaults["overlay_work"] = defaults["work"] + "/overlay_work"
-defaults["data"] = defaults["work"] + "/data"
-defaults["lxc"] = defaults["work"] + "/lxc"
-defaults["host_perms"] = defaults["work"] + "/host-permissions"
-defaults["container_pulse_runtime_path"] = defaults["container_xdg_runtime_dir"] + "/pulse"
+_defaults["images_path"] = _defaults["work"] + "/images"
+_defaults["rootfs"] = _defaults["work"] + "/rootfs"
+_defaults["overlay"] = _defaults["work"] + "/overlay"
+_defaults["overlay_rw"] = _defaults["work"] + "/overlay_rw"
+_defaults["overlay_work"] = _defaults["work"] + "/overlay_work"
+_defaults["data"] = _defaults["work"] + "/data"
+_defaults["lxc"] = _defaults["work"] + "/lxc"
+_defaults["host_perms"] = _defaults["work"] + "/host-permissions"
+_defaults["container_pulse_runtime_path"] = _defaults["container_xdg_runtime_dir"] + "/pulse"
 
-session_defaults = {
+def defaults(args, key):
+    if key in ["work", "rootfs", "overlay", "overlay_rw", "overlay_work", "data", "lxc"]:
+        session_default = _defaults[key].replace('/waydroid', f'/waydroid/session_{args.session_id}')
+        logging.info(f"Session default {key} => {session_default}")
+        return session_default
+    return _defaults[key]
+
+_session_defaults = {
     "user_name": pwd.getpwuid(os.getuid()).pw_name,
     "user_id": str(os.getuid()),
     "group_id": str(os.getgid()),
@@ -68,10 +76,19 @@ session_defaults = {
     "lcd_density": "0",
     "background_start": "true"
 }
-session_defaults["waydroid_data"] = session_defaults["xdg_data_home"] + \
+_session_defaults["waydroid_data"] = _session_defaults["xdg_data_home"] + \
     "/waydroid/data"
-if session_defaults["pulse_runtime_path"] == "None":
-    session_defaults["pulse_runtime_path"] = session_defaults["xdg_runtime_dir"] + "/pulse"
+if _session_defaults["pulse_runtime_path"] == "None":
+    _session_defaults["pulse_runtime_path"] = _session_defaults["xdg_runtime_dir"] + "/pulse"
+
+def session_defaults(args, key=None):
+    if key is None:
+        session_copy = _session_defaults.copy()
+        session_copy["waydroid_data"] = session_defaults(args, "waydroid_data")
+        return session_copy
+    if key == "waydroid_data":
+        return _session_defaults[key].replace('waydroid/', f'waydroid/session_{args.session_id}')
+    return _session_defaults[key]
 
 channels_defaults = {
     "config_path": "/usr/share/waydroid-extra/channels.cfg",

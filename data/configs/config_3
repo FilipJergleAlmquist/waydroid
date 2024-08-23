@@ -1,5 +1,3 @@
-lxc.uts.name = waydroid
-
 lxc.apparmor.profile = unconfined
 lxc.seccomp.profile = /var/lib/waydroid/lxc/waydroid/waydroid.seccomp
 
@@ -15,3 +13,5 @@ lxc.net.0.hwaddr = 00:16:3e:f9:d3:03
 lxc.net.0.mtu = 1500
 
 lxc.pty.max = 10
+
+# lxc.uts.name = waydroid

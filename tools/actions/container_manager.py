@@ -20,10 +20,13 @@ class DbusContainerManager(dbus.service.Object):
     def __init__(self, looper, bus, object_path, args):
         self.args = args
         self.looper = looper
+        self.sessions = {}
         dbus.service.Object.__init__(self, bus, object_path)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='a{ss}', out_signature='', sender_keyword="sender", connection_keyword="conn")
-    def Start(self, session, sender, conn):
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='sa{ss}', out_signature='', sender_keyword="sender", connection_keyword="conn")
+    def Start(self, session_id, session, sender, conn):
+        self.args.session_id = session_id
+
         dbus_info = dbus.Interface(conn.get_object("org.freedesktop.DBus", "/org/freedesktop/DBus/Bus", False), "org.freedesktop.DBus")
         uid = dbus_info.GetConnectionUnixUser(sender)
         if str(uid) not in ["0", session["user_id"]]:
@@ -31,28 +34,40 @@ class DbusContainerManager(dbus.service.Object):
         pid = dbus_info.GetConnectionUnixProcessID(sender)
         if str(uid) != "0" and str(pid) != session["pid"]:
             raise RuntimeError("Invalid session pid")
-        do_start(self.args, session)
+        self.sessions[session_id] = do_start(self.args, session)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='b', out_signature='')
-    def Stop(self, quit_session):
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='sb', out_signature='')
+    def Stop(self, session_id, quit_session):
+        self.args.session_id = session_id
+        self.sessions.pop(session_id)
         stop(self.args, quit_session)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='', out_signature='')
-    def Freeze(self):
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='s', out_signature='')
+    def Freeze(self, session_id):
+        self.args.session_id = session_id
         freeze(self.args)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='', out_signature='')
-    def Unfreeze(self):
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='s', out_signature='')
+    def Unfreeze(self, session_id):
+        self.args.session_id = session_id
         unfreeze(self.args)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='', out_signature='a{ss}')
-    def GetSession(self):
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='s', out_signature='a{ss}')
+    def GetSession(self, session_id):
+        self.args.session_id = session_id
         try:
-            session = self.args.session
+            session = self.sessions[session_id]
+            # session = self.args.session
             session["state"] = helpers.lxc.status(self.args)
+            logging.info(f"retreived session {session_id}, {session}")
             return session
-        except AttributeError:
+        # except AttributeError:
             return {}
+        except KeyError:
+            new_session = {}
+            self.sessions[session_id] = new_session
+            logging.info(f"created new session {session_id}, {session}")
+            return new_session
 
 def service(args, looper):
     dbus_obj = DbusContainerManager(looper, dbus.SystemBus(), '/ContainerManager', args)
@@ -113,10 +128,10 @@ def do_start(args, session):
     # Create session-specific LXC config file
     helpers.lxc.generate_session_lxc_config(args, session)
     # Backwards compatibility
-    with open(tools.config.defaults["lxc"] + "/waydroid/config") as f:
+    with open(tools.config.defaults(args, "lxc") + "/waydroid/config") as f:
         if "config_session" not in f.read():
             helpers.mount.bind(args, session["waydroid_data"],
-                               tools.config.defaults["data"])
+                               tools.config.defaults(args, "data"))
 
     # Mount rootfs
     cfg = tools.config.load(args)
@@ -125,6 +140,8 @@ def do_start(args, session):
     helpers.lxc.start(args)
 
     args.session = session
+
+    return session
 
 def stop(args, quit_session=True):
     try:
@@ -145,7 +162,7 @@ def stop(args, quit_session=True):
 
         # Backwards compatibility
         try:
-            helpers.mount.umount_all(args, tools.config.defaults["data"])
+            helpers.mount.umount_all(args, tools.config.defaults(args, "data"))
         except:
             pass
 

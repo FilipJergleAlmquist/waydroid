@@ -16,11 +16,11 @@ def install(args):
         tools.helpers.ipc.DBusSessionService()
 
         cm = tools.helpers.ipc.DBusContainerService()
-        session = cm.GetSession()
+        session = cm.GetSession(args.session_id)
         if session["state"] == "FROZEN":
-            cm.Unfreeze()
+            cm.Unfreeze(args.session_id)
 
-        tmp_dir = tools.config.session_defaults["waydroid_data"] + "/waydroid_tmp"
+        tmp_dir = tools.config.session_defaults(args, "waydroid_data") + "/waydroid_tmp"
         if not os.path.exists(tmp_dir):
             os.makedirs(tmp_dir)
 
@@ -33,7 +33,7 @@ def install(args):
         os.remove(tmp_dir + "/base.apk")
 
         if session["state"] == "FROZEN":
-            cm.Freeze()
+            cm.Freeze(args.session_id)
     except (dbus.DBusException, KeyError):
         logging.error("WayDroid session is stopped")
 
@@ -42,9 +42,9 @@ def remove(args):
         tools.helpers.ipc.DBusSessionService()
 
         cm = tools.helpers.ipc.DBusContainerService()
-        session = cm.GetSession()
+        session = cm.GetSession(args.session_id)
         if session["state"] == "FROZEN":
-            cm.Unfreeze()
+            cm.Unfreeze(args.session_id)
 
         platformService = IPlatform.get_service(args)
         if platformService:
@@ -55,7 +55,7 @@ def remove(args):
             logging.error("Failed to access IPlatform service")
 
         if session["state"] == "FROZEN":
-            cm.Freeze()
+            cm.Freeze(args.session_id)
     except dbus.DBusException:
         logging.error("WayDroid session is stopped")
 
@@ -63,7 +63,7 @@ def maybeLaunchLater(args, launchNow):
     try:
         tools.helpers.ipc.DBusSessionService()
         try:
-            tools.helpers.ipc.DBusContainerService().Unfreeze()
+            tools.helpers.ipc.DBusContainerService().Unfreeze(args.session_id)
         except:
             logging.error("Failed to unfreeze container. Trying to launch anyways...")
         launchNow()
@@ -94,9 +94,9 @@ def list(args):
         tools.helpers.ipc.DBusSessionService()
 
         cm = tools.helpers.ipc.DBusContainerService()
-        session = cm.GetSession()
+        session = cm.GetSession(args.session_id)
         if session["state"] == "FROZEN":
-            cm.Unfreeze()
+            cm.Unfreeze(args.session_id)
 
         platformService = IPlatform.get_service(args)
         if platformService:
@@ -111,7 +111,7 @@ def list(args):
             logging.error("Failed to access IPlatform service")
 
         if session["state"] == "FROZEN":
-            cm.Freeze()
+            cm.Freeze(args.session_id)
     except dbus.DBusException:
         logging.error("WayDroid session is stopped")
 

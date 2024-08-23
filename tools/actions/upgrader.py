@@ -4,6 +4,7 @@ import logging
 import os
 from tools import helpers
 from tools.helpers.version import versiontuple
+from tools.helpers.lxc import container_path
 import tools.config
 import dbus
 
@@ -30,21 +31,21 @@ def migration(args):
 def upgrade(args):
     get_config(args)
     status = "STOPPED"
-    if os.path.exists(tools.config.defaults["lxc"] + "/waydroid"):
+    if os.path.exists(tools.config.defaults(args, "lxc") + container_path(args)):
         status = helpers.lxc.status(args)
     if status != "STOPPED":
         logging.info("Stopping container")
         try:
             container = tools.helpers.ipc.DBusContainerService()
-            args.session = container.GetSession()
-            container.Stop(False)
+            args.session = container.GetSession(args.session_id)
+            container.Stop(args.session_id, False)
         except Exception as e:
             logging.debug(e)
             tools.actions.container_manager.stop(args)
     migration(args)
     helpers.drivers.loadBinderNodes(args)
     if not args.offline:
-        if args.images_path not in tools.config.defaults["preinstalled_images_paths"]:
+        if args.images_path not in tools.config.defaults(args, "preinstalled_images_paths"):
             helpers.images.get(args)
         else:
             logging.info("Upgrade refused because Waydroid was configured to load pre-installed image from {}.".format(args.images_path))
@@ -55,7 +56,7 @@ def upgrade(args):
     if status != "STOPPED":
         logging.info("Starting container")
         try:
-            container.Start(args.session)
+            container.Start(args.session_id, args.session)
         except Exception as e:
             logging.debug(e)
             logging.error("Failed to restart container. Please do so manually.")

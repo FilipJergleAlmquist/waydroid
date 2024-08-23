@@ -27,7 +27,7 @@ def main():
         # Parse arguments, set up logging
         args = helpers.arguments()
         args.cache = {}
-        args.work = config.defaults["work"]
+        args.work = config._defaults["work"]
         args.config = args.work + "/waydroid.cfg"
         args.log = args.work + "/waydroid.log"
         args.sudo_timer = True

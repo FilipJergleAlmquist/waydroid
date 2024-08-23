@@ -13,7 +13,7 @@ def print_status(args):
         print("Vendor type:\t" + cfg["waydroid"]["vendor_type"])
 
     try:
-        session = tools.helpers.ipc.DBusContainerService().GetSession()
+        session = tools.helpers.ipc.DBusContainerService().GetSession(args.session_id)
         if session:
             print("Session:\tRUNNING")
             print("Container:\t" + session["state"])

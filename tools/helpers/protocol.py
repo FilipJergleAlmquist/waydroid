@@ -4,11 +4,12 @@ import logging
 
 # Call me with rootfs mounted!
 def set_aidl_version(args):
+    logging.info("set aidl version")
     cfg = tools.config.load(args)
     android_api = 0
     try:
         android_api = int(helpers.props.file_get(args,
-                tools.config.defaults["rootfs"] + "/system/build.prop",
+                tools.config.defaults(args, "rootfs") + "/system/build.prop",
                 "ro.build.version.sdk"))
     except:
         logging.error("Failed to parse android version from system.img")
