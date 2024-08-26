@@ -34,22 +34,28 @@ class DbusContainerManager(dbus.service.Object):
         pid = dbus_info.GetConnectionUnixProcessID(sender)
         if str(uid) != "0" and str(pid) != session["pid"]:
             raise RuntimeError("Invalid session pid")
+        
+        if session_id in self.sessions:
+            raise RuntimeError(f"Already tracking a session {session_id}")
+        
         self.sessions[session_id] = do_start(self.args, session)
 
     @dbus.service.method("id.waydro.ContainerManager", in_signature='sb', out_signature='')
     def Stop(self, session_id, quit_session):
         self.args.session_id = session_id
-        self.sessions.pop(session_id)
+        self.args.session = self.sessions.pop(session_id)
         stop(self.args, quit_session)
 
     @dbus.service.method("id.waydro.ContainerManager", in_signature='s', out_signature='')
     def Freeze(self, session_id):
         self.args.session_id = session_id
+        self.args.session = self.sessions[session_id]
         freeze(self.args)
 
     @dbus.service.method("id.waydro.ContainerManager", in_signature='s', out_signature='')
     def Unfreeze(self, session_id):
         self.args.session_id = session_id
+        self.args.session = self.sessions[session_id]
         unfreeze(self.args)
 
     @dbus.service.method("id.waydro.ContainerManager", in_signature='s', out_signature='a{ss}')
@@ -117,8 +123,8 @@ def start(args):
         logging.error("WayDroid container is {}".format(status))
 
 def do_start(args, session):
-    if "session" in args:
-        raise RuntimeError("Already tracking a session")
+    # if "session" in args:
+    #     raise RuntimeError("Already tracking a session")
 
     # Networking
     command = [tools.config.tools_src +

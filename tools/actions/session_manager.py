@@ -40,9 +40,13 @@ def start(args, unlocked_cb=None, background=True):
         if unlocked_cb:
             unlocked_cb()
         return
+    
+    mainloop = GLib.MainLoop()
 
     for i in range(args.num_sessions):
-        logging.info("starting session {}")
+        args.session_id = str(i)
+
+        logging.info(f"starting session {i}")
         session = copy.copy(tools.config.session_defaults(args))
 
         # TODO: also support WAYLAND_SOCKET?
@@ -78,18 +82,9 @@ def start(args, unlocked_cb=None, background=True):
 
         session["background_start"] = "true" if background else "false"
 
-        mainloop = GLib.MainLoop()
+        local_args = copy.copy(args)
 
-        def sigint_handler(data):
-            do_stop(args, mainloop)
-            stop_container(args.session_id, quit_session=False)
-
-        def sigusr_handler(data):
-            do_stop(args, mainloop)
-
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, sigint_handler, None)
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, sigint_handler, None)
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGUSR1, sigusr_handler, None)
+        # GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGUSR1, sigusr_handler, None)
         try:
             tools.helpers.ipc.DBusContainerService().Start(args.session_id, session)
         except dbus.DBusException as e:
@@ -100,9 +95,24 @@ def start(args, unlocked_cb=None, background=True):
                 logging.error("WayDroid container is not listening")
             sys.exit(0)
 
-        services.user_manager.start(args, session, unlocked_cb)
-        services.clipboard_manager.start(args)
-        service(args, mainloop)
+        # services.user_manager.start(args, session, unlocked_cb)
+        # services.clipboard_manager.start(args)
+
+
+    def sigint_handler(data):
+        # do_stop(local_args, mainloop)
+        for i in range(args.num_sessions):
+            session_id = str(i)
+            stop_container(session_id, quit_session=False)
+        mainloop.quit()
+
+    # def sigusr_handler(data):
+    #     do_stop(local_args, mainloop)
+
+    GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, sigint_handler, None)
+    GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, sigint_handler, None)
+
+    service(args, mainloop)
 
 def do_stop(args, looper):
     services.user_manager.stop(args)
