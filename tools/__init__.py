@@ -27,15 +27,15 @@ def main():
         # Parse arguments, set up logging
         args = helpers.arguments()
         args.cache = {}
-        args.work = config._defaults["work"]
-        args.config = args.work + "/waydroid.cfg"
-        args.log = args.work + "/waydroid.log"
+        args.work_root = config._defaults["work_root"]
+        args.config = args.work_root + "/waydroid.cfg"
+        args.log = args.work_root + "/waydroid.log"
         args.sudo_timer = True
         args.timeout = 1800
 
         if os.geteuid() == 0:
-            if not os.path.exists(args.work):
-                os.mkdir(args.work)
+            if not os.path.exists(args.work_root):
+                os.mkdir(args.work_root)
         elif not os.path.exists(args.log):
             args.log = "/tmp/tools.log"
 

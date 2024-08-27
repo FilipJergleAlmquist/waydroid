@@ -18,6 +18,7 @@ def get_config(args):
     args.session = None
 
 def migration(args):
+    args.work = tools.config.defaults(args, "work")
     try:
         old_ver = tools.helpers.props.file_get(args, args.work + "/waydroid_base.prop", "waydroid.tools_version")
         if versiontuple(old_ver) <= versiontuple("1.3.4"):

@@ -91,6 +91,7 @@ def download(args, url, prefix, cache=True, loglevel=logging.INFO,
                 print(f"\r[Downloading] {currentSize} MB/{totalSize} MB    {downloadSpeed}(approx.)", end=" ")
             time.sleep(.01)
 
+    args.work = tools.config.defaults(args, "work")
     # Create cache folder
     if not os.path.exists(args.work + "/cache_http"):
         tools.helpers.run.user(args, ["mkdir", "-p", args.work + "/cache_http"])

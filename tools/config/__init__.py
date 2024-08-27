@@ -32,6 +32,7 @@ config_keys = ["arch",
 _defaults = {
     "arch": "arm64",
     "work": "/var/lib/waydroid",
+    "work_root": "/var/lib/waydroid",
     "vendor_type": "MAINLINE",
     "system_datetime": "0",
     "vendor_datetime": "0",
@@ -87,7 +88,7 @@ def session_defaults(args, key=None):
         session_copy["waydroid_data"] = session_defaults(args, "waydroid_data")
         return session_copy
     if key == "waydroid_data":
-        return _session_defaults[key].replace('waydroid/', f'waydroid/session_{args.session_id}')
+        return _session_defaults[key].replace('waydroid/', f'waydroid/session_{args.session_id}/')
     return _session_defaults[key]
 
 channels_defaults = {

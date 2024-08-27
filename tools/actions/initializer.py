@@ -45,6 +45,7 @@ def setup_config(args):
             if os.path.isdir(preinstalled_images):
                 if os.path.isfile(preinstalled_images + "/system.img") and os.path.isfile(preinstalled_images + "/vendor.img"):
                     args.images_path = preinstalled_images
+                    logging.info(f"Found images at {args.images_path}")
                     break
                 else:
                     logging.warning("Found directory {} but missing system or vendor image, ignoring...".format(preinstalled_images))

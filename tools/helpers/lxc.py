@@ -173,6 +173,7 @@ def set_lxc_config(args):
         command = ["sed", "-i", "-E", "/lxc.aa_profile|lxc.apparmor.profile/ s/unconfined/{}/g".format(LXC_APPARMOR_PROFILE), lxc_path + "/config"]
         tools.helpers.run.user(args, command)
 
+    args.work = tools.config.defaults(args, "work")
     nodes = generate_nodes_lxc_config(args)
     config_nodes_tmp_path = args.work + "/config_nodes"
     config_nodes = open(config_nodes_tmp_path, "w")
@@ -215,6 +216,7 @@ def generate_session_lxc_config(args, session):
         raise OSError("Failed to bind userdata")
 
     lxc_path = tools.config.defaults(args, "lxc") + container_path(args)
+    args.work = tools.config.defaults(args, "work")
     config_nodes_tmp_path = args.work + "/config_session"
     config_nodes = open(config_nodes_tmp_path, "w")
     for node in nodes:
@@ -347,6 +349,7 @@ def make_base_props(args):
                 props.pop(idx)
         props.append(k+"="+v)
 
+    args.work = tools.config.defaults(args, "work")
     base_props = open(args.work + "/waydroid_base.prop", "w")
     for prop in props:
         base_props.write(prop + "\n")
