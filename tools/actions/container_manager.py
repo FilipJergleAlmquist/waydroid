@@ -128,7 +128,7 @@ def do_start(args, session):
 
     # Networking
     command = [tools.config.tools_src +
-               "/data/scripts/waydroid-net.sh", "start"]
+               "/data/scripts/waydroid-net.sh", "start", "--sid", str(args.session_id)]
     tools.helpers.run.user(args, command)
 
     # Create session-specific LXC config file
@@ -160,7 +160,7 @@ def stop(args, quit_session=True):
 
         # Networking
         command = [tools.config.tools_src +
-                   "/data/scripts/waydroid-net.sh", "stop"]
+                   "/data/scripts/waydroid-net.sh", "stop", "--sid", str(args.session_id)]
         tools.helpers.run.user(args, command, check=False)
 
         # Umount rootfs

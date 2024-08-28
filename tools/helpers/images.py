@@ -133,6 +133,7 @@ def make_prop(args, cfg, full_props_path):
             value = value.replace("/mnt/", "/mnt_extra/")
             props.append(key + "=" + value)
 
+    props.append(f"waydroid.host.session_id={args.session_id}")
     add_prop("waydroid.host.user", "user_name")
     add_prop("waydroid.host.uid", "user_id")
     add_prop("waydroid.host.gid", "group_id")

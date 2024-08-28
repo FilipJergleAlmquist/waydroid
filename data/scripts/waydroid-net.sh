@@ -1,31 +1,54 @@
 #!/bin/sh -
 
-varrun="/run/waydroid-lxc"
+SESSION_ID="0"
+
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --num-sessions)
+            SESSION_ID="$2"
+            shift 2
+            ;;
+        start|stop|restart|reload|force-reload)
+            COMMAND="$1"
+            shift
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+done
+
+VNIC="waydroid$SESSION_ID"
+
+varrun="/run/waydroid-lxc/session_$SESSION_ID"
 varlib="/var/lib"
 net_link_key="lxc.net.0.link"
 case "$(lxc-info --version)" in [012].*) net_link_key="lxc.network.link" ;; esac
-vnic=$(awk "\$1 == \"$net_link_key\" {print \$3}" /var/lib/waydroid/lxc/waydroid/config)
+vnic=$(awk "\$1 == \"$net_link_key\" {print \$3}" /var/lib/waydroid/session_$SESSION_ID/lxc/waydroid/config)
 : ${vnic:=waydroid0}
 
-if [ "$vnic" != "waydroid0" ]; then
+if [ "$vnic" != "$VNIC" ]; then
+    echo "expected vnic to be $VNIC"
     echo "vnic is $vnic, bailing out"
     exit 0
 else 
-    echo "vnic is waydroid0"
+    echo "vnic is $VNIC"
 fi
 
 USE_LXC_BRIDGE="true"
 LXC_BRIDGE="${vnic}"
-LXC_BRIDGE_MAC="00:16:3e:00:00:01"
-LXC_ADDR="192.168.240.1"
+LXC_BRIDGE_MAC="00:16:3e:00:00:0$SESSION_ID"
+LXC_ADDR="192.168.24$SESSION_ID.1"
 LXC_NETMASK="255.255.255.0"
-LXC_NETWORK="192.168.240.0/24"
-LXC_DHCP_RANGE="192.168.240.2,192.168.240.254"
+LXC_NETWORK="192.168.24$SESSION_ID.0/24"
+LXC_DHCP_RANGE="192.168.24$SESSION_ID.2,192.168.24$SESSION_ID.254"
 LXC_DHCP_MAX="253"
 LXC_DHCP_CONFILE=""
 LXC_DHCP_PING="true"
 LXC_DOMAIN=""
-LXC_USE_NFT="false"
+LXC_USE_NFT="true"
 
 LXC_IPV6_ADDR=""
 LXC_IPV6_MASK=""
@@ -100,28 +123,29 @@ start_iptables() {
 
 start_nftables() {
     start_ipv6
+    TABLE_NAME="lxc$SESSION_ID"
     NFT_RULESET=""
     if [ -n "$LXC_IPV6_ARG" ] && [ "$LXC_IPV6_NAT" = "true" ]; then
         NFT_RULESET="${NFT_RULESET}
-add table ip6 lxc;
-flush table ip6 lxc;
-add chain ip6 lxc postrouting { type nat hook postrouting priority 100; };
-add rule ip6 lxc postrouting ip saddr ${LXC_IPV6_NETWORK} ip daddr != ${LXC_IPV6_NETWORK} counter masquerade;
+add table ip6 $TABLE_NAME;
+flush table ip6 $TABLE_NAME;
+add chain ip6 $TABLE_NAME postrouting { type nat hook postrouting priority 100; };
+add rule ip6 $TABLE_NAME postrouting ip saddr ${LXC_IPV6_NETWORK} ip daddr != ${LXC_IPV6_NETWORK} counter masquerade;
 "
     fi
     NFT_RULESET="${NFT_RULESET};
-add table inet lxc;
-flush table inet lxc;
-add chain inet lxc input { type filter hook input priority 0; };
-add rule inet lxc input iifname ${LXC_BRIDGE} udp dport { 53, 67 } accept;
-add rule inet lxc input iifname ${LXC_BRIDGE} tcp dport { 53, 67 } accept;
-add chain inet lxc forward { type filter hook forward priority 0; };
-add rule inet lxc forward iifname ${LXC_BRIDGE} accept;
-add rule inet lxc forward oifname ${LXC_BRIDGE} accept;
-add table ip lxc;
-flush table ip lxc;
-add chain ip lxc postrouting { type nat hook postrouting priority 100; };
-add rule ip lxc postrouting ip saddr ${LXC_NETWORK} ip daddr != ${LXC_NETWORK} counter masquerade"
+add table inet $TABLE_NAME;
+flush table inet $TABLE_NAME;
+add chain inet $TABLE_NAME input { type filter hook input priority 0; };
+add rule inet $TABLE_NAME input iifname ${LXC_BRIDGE} udp dport { 53, 67 } accept;
+add rule inet $TABLE_NAME input iifname ${LXC_BRIDGE} tcp dport { 53, 67 } accept;
+add chain inet $TABLE_NAME forward { type filter hook forward priority 0; };
+add rule inet $TABLE_NAME forward iifname ${LXC_BRIDGE} accept;
+add rule inet $TABLE_NAME forward oifname ${LXC_BRIDGE} accept;
+add table ip $TABLE_NAME;
+flush table ip $TABLE_NAME;
+add chain ip $TABLE_NAME postrouting { type nat hook postrouting priority 100; };
+add rule ip $TABLE_NAME postrouting ip saddr ${LXC_NETWORK} ip daddr != ${LXC_NETWORK} counter masquerade"
     nft "${NFT_RULESET}"
 }
 
@@ -165,11 +189,11 @@ start() {
 
     _ifup
 
-    if use_nft; then
+    # if use_nft; then
         start_nftables
-    else
-        start_iptables
-    fi
+    # else
+    #     start_iptables
+    # fi
 
     LXC_DOMAIN_ARG=""
     if [ -n "$LXC_DOMAIN" ]; then
@@ -197,13 +221,21 @@ start() {
         mkdir "${varlib}"/misc
     fi
 
+    # dnsmasq $LXC_DHCP_CONFILE_ARG $LXC_DOMAIN_ARG $LXC_DHCP_PING_ARG -u ${DNSMASQ_USER} \
+    #         --strict-order --bind-interfaces --pid-file="${varrun}"/dnsmasq.pid \
+    #         --listen-address ${LXC_ADDR} --dhcp-range ${LXC_DHCP_RANGE} \
+    #         --dhcp-lease-max=${LXC_DHCP_MAX} --dhcp-no-override \
+    #         --except-interface=lo --interface=${LXC_BRIDGE} \
+    #         --dhcp-leasefile="${varlib}"/misc/dnsmasq.${LXC_BRIDGE}.leases \
+    #         --dhcp-authoritative $LXC_IPV6_ARG || cleanup
     dnsmasq $LXC_DHCP_CONFILE_ARG $LXC_DOMAIN_ARG $LXC_DHCP_PING_ARG -u ${DNSMASQ_USER} \
-            --strict-order --bind-interfaces --pid-file="${varrun}"/dnsmasq.pid \
-            --listen-address ${LXC_ADDR} --dhcp-range ${LXC_DHCP_RANGE} \
-            --dhcp-lease-max=${LXC_DHCP_MAX} --dhcp-no-override \
-            --except-interface=lo --interface=${LXC_BRIDGE} \
-            --dhcp-leasefile="${varlib}"/misc/dnsmasq.${LXC_BRIDGE}.leases \
-            --dhcp-authoritative $LXC_IPV6_ARG || cleanup
+        --strict-order --bind-interfaces --pid-file="${varrun}"/dnsmasq.pid \
+        --listen-address ${LXC_ADDR} --dhcp-range ${LXC_DHCP_RANGE} \
+        --dhcp-lease-max=${LXC_DHCP_MAX} --dhcp-no-override \
+        --except-interface=lo --interface=${LXC_BRIDGE} \
+        --dhcp-leasefile="${varlib}"/misc/dnsmasq.${LXC_BRIDGE}.leases \
+        --dhcp-authoritative --log-queries --log-dhcp --log-facility=/var/log/dnsmasq_${SESSION_ID}.log $LXC_IPV6_ARG || cleanup
+
 
     touch "${varrun}"/network_up
     FAILED=0
@@ -226,15 +258,16 @@ stop_iptables() {
 stop_nftables() {
     # Adding table before removing them is just to avoid
     # delete error for non-existent table
-    NFT_RULESET="add table inet lxc;
-delete table inet lxc;
-add table ip lxc;
-delete table ip lxc;
+    TABLE_NAME="lxc$SESSION_ID"
+    NFT_RULESET="add table inet $TABLE_NAME;
+delete table inet $TABLE_NAME;
+add table ip $TABLE_NAME;
+delete table ip $TABLE_NAME;
 "
     if [ "$LXC_IPV6_NAT" = "true" ]; then
         NFT_RULESET="${NFT_RULESET};
-add table ip6 lxc;
-delete table ip6 lxc;"
+add table ip6 $TABLE_NAME;
+delete table ip6 $TABLE_NAME;"
     fi
     nft "${NFT_RULESET}"
 }
@@ -262,7 +295,7 @@ stop() {
 }
 
 # See how we were called.
-case "$1" in
+case "$COMMAND" in
     start)
         start
     ;;

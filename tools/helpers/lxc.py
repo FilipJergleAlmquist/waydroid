@@ -161,7 +161,9 @@ def set_lxc_config(args):
     include_config_session = "lxc.include = " + lxc_path + "/config_session"
     rootfs_path = "lxc.rootfs.path = " + tools.config.defaults(args, "rootfs")
     uts_name = "lxc.uts.name = " + container_name(args)
-    config_edits = f"\"{include_config_nodes}\n{include_config_session}\n{rootfs_path}\n{uts_name}\n\""
+    net_link = f"lxc.net.0.link = waydroid{args.session_id}"
+    net_hwaddr = f"lxc.net.0.hwaddr = 00:16:3e:f9:d3:0{3+args.session_id}"
+    config_edits = f"\"{include_config_nodes}\n{include_config_session}\n{rootfs_path}\n{uts_name}\n{net_link}\n{net_hwaddr}\n\""
 
     command = ["sh", "-c", "(cat {}; echo {}) > \"{}\"".format(' '.join('"{0}"'.format(w) for w in config_snippets), config_edits, lxc_path + "/config")]
     tools.helpers.run.user(args, command)
@@ -499,7 +501,7 @@ def logcat(args):
     shell(args)
 
 def container_name(args):
-    return f"waydroid_{args.session_id}"
+    return "waydroid"
 
 def container_path(args):
     return "/" + container_name(args)
