@@ -105,6 +105,7 @@ def setup_config(args):
     cfg["waydroid"]["vendor_type"] = args.vendor_type
     cfg["waydroid"]["system_ota"] = args.system_ota
     cfg["waydroid"]["vendor_ota"] = args.vendor_ota
+    logging.info("Setting up binder nodes")
     helpers.drivers.setupBinderNodes(args)
     cfg["waydroid"]["binder"] = args.BINDER_DRIVER
     cfg["waydroid"]["vndbinder"] = args.VNDBINDER_DRIVER

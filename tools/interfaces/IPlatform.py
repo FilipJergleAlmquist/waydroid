@@ -4,6 +4,7 @@ import time
 from tools import helpers
 from gi.repository import GLib
 import signal
+import tools.config
 
 
 INTERFACE = "lineageos.waydroid.IPlatform"
@@ -300,10 +301,11 @@ class IPlatform:
 
 def get_service(args):
     helpers.drivers.loadBinderNodes(args)
+    binderfs_path = tools.config.defaults(args, "binderfs")
     try:
-        serviceManager = gbinder.ServiceManager("/dev/" + args.BINDER_DRIVER, args.SERVICE_MANAGER_PROTOCOL, args.BINDER_PROTOCOL)
+        serviceManager = gbinder.ServiceManager(binderfs_path + args.BINDER_DRIVER, args.SERVICE_MANAGER_PROTOCOL, args.BINDER_PROTOCOL)
     except TypeError:
-        serviceManager = gbinder.ServiceManager("/dev/" + args.BINDER_DRIVER)
+        serviceManager = gbinder.ServiceManager(binderfs_path + args.BINDER_DRIVER)
 
     if not serviceManager.is_present():
         logging.info("Waiting for binder Service Manager...")

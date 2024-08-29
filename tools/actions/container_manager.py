@@ -104,16 +104,17 @@ def start(args):
                 logging.error("Failed to load Binder driver")
             helpers.drivers.probeAshmemDriver(args)
         helpers.drivers.loadBinderNodes(args)
+        binderfs_path = tools.config.defaults(args, "binderfs")
         set_permissions(args, [
-            "/dev/" + args.BINDER_DRIVER,
-            "/dev/" + args.VNDBINDER_DRIVER,
-            "/dev/" + args.HWBINDER_DRIVER
+            binderfs_path + args.BINDER_DRIVER,
+            binderfs_path + args.VNDBINDER_DRIVER,
+            binderfs_path + args.HWBINDER_DRIVER
         ], "666")
 
         mainloop = GLib.MainLoop()
 
         def sigint_handler(data):
-            stop(args)
+        #     stop(args)
             mainloop.quit()
 
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, sigint_handler, None)
@@ -125,6 +126,23 @@ def start(args):
 def do_start(args, session):
     # if "session" in args:
     #     raise RuntimeError("Already tracking a session")
+
+    status = helpers.lxc.status(args)
+    if status == "STOPPED":
+        # Load binder and ashmem drivers
+        cfg = tools.config.load(args)
+        if cfg["waydroid"]["vendor_type"] == "MAINLINE":
+            if helpers.drivers.probeBinderDriver(args) != 0:
+                logging.error("Failed to load Binder driver")
+            helpers.drivers.probeAshmemDriver(args)
+        helpers.drivers.loadBinderNodes(args)
+        binderfs_path = tools.config.defaults(args, "binderfs")
+        set_permissions(args, [
+            binderfs_path + args.BINDER_DRIVER,
+            binderfs_path + args.VNDBINDER_DRIVER,
+            binderfs_path + args.HWBINDER_DRIVER
+        ], "666")
+
 
     # Networking
     command = [tools.config.tools_src +
