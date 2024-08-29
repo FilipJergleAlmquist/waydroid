@@ -21,7 +21,7 @@ class DbusSessionManager(dbus.service.Object):
         self.looper = looper
         dbus.service.Object.__init__(self, bus, object_path)
 
-    @dbus.service.method("id.waydro.SessionManager", in_signature='s', out_signature='')
+    @dbus.service.method("id.waydro.SessionManager", in_signature='i', out_signature='')
     def Stop(self, session_id):
         self.args.session_id = session_id
         do_stop(self.args, self.looper)
@@ -44,7 +44,7 @@ def start(args, unlocked_cb=None, background=True):
     mainloop = GLib.MainLoop()
 
     for i in range(args.num_sessions):
-        args.session_id = str(i)
+        args.session_id = i
 
         logging.info(f"starting session {i}")
         session = copy.copy(tools.config.session_defaults(args))
@@ -102,7 +102,7 @@ def start(args, unlocked_cb=None, background=True):
     def sigint_handler(data):
         # do_stop(local_args, mainloop)
         for i in range(args.num_sessions):
-            session_id = str(i)
+            session_id = i
             stop_container(session_id, quit_session=False)
         mainloop.quit()
 

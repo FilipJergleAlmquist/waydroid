@@ -43,8 +43,9 @@ _defaults = {
     "suspend_action": "freeze",
     "mount_overlays": "True",
     "auto_adb": "True",
-    "container_xdg_runtime_dir": "/run/xdg",
+    "container_xdg_runtime_dir": "/run/waydroid/xdg",
     "container_wayland_display": "wayland-0",
+    "binderfs": "/dev/waydroid/binderfs"
 }
 _defaults["images_path"] = _defaults["work"] + "/images"
 _defaults["rootfs"] = _defaults["work"] + "/rootfs"
@@ -57,7 +58,7 @@ _defaults["host_perms"] = _defaults["work"] + "/host-permissions"
 _defaults["container_pulse_runtime_path"] = _defaults["container_xdg_runtime_dir"] + "/pulse"
 
 def defaults(args, key):
-    if key in ["work", "rootfs", "overlay", "overlay_rw", "overlay_work", "data", "lxc"]:
+    if key in ["work", "rootfs", "overlay", "overlay_rw", "overlay_work", "data", "lxc", "container_xdg_runtime_dir", "binderfs"]:
         session_default = _defaults[key].replace('/waydroid', f'/waydroid/session_{args.session_id}')
         logging.info(f"Session default {key} => {session_default}")
         return session_default

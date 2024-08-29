@@ -23,7 +23,7 @@ class DbusContainerManager(dbus.service.Object):
         self.sessions = {}
         dbus.service.Object.__init__(self, bus, object_path)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='sa{ss}', out_signature='', sender_keyword="sender", connection_keyword="conn")
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='ia{ss}', out_signature='', sender_keyword="sender", connection_keyword="conn")
     def Start(self, session_id, session, sender, conn):
         self.args.session_id = session_id
 
@@ -40,25 +40,25 @@ class DbusContainerManager(dbus.service.Object):
         
         self.sessions[session_id] = do_start(self.args, session)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='sb', out_signature='')
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='ib', out_signature='')
     def Stop(self, session_id, quit_session):
         self.args.session_id = session_id
         self.args.session = self.sessions.pop(session_id)
         stop(self.args, quit_session)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='s', out_signature='')
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='i', out_signature='')
     def Freeze(self, session_id):
         self.args.session_id = session_id
         self.args.session = self.sessions[session_id]
         freeze(self.args)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='s', out_signature='')
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='i', out_signature='')
     def Unfreeze(self, session_id):
         self.args.session_id = session_id
         self.args.session = self.sessions[session_id]
         unfreeze(self.args)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='s', out_signature='a{ss}')
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='i', out_signature='a{ss}')
     def GetSession(self, session_id):
         self.args.session_id = session_id
         try:
@@ -129,6 +129,7 @@ def do_start(args, session):
     # Networking
     command = [tools.config.tools_src +
                "/data/scripts/waydroid-net.sh", "start", "--sid", str(args.session_id)]
+    # if args.session_id == 0:
     tools.helpers.run.user(args, command)
 
     # Create session-specific LXC config file

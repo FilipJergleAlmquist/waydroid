@@ -56,7 +56,7 @@ def allocBinderNodes(args, binder_dev_nodes):
         return IOC(READ|WRITE, _type, nr, size)
 
     BINDER_CTL_ADD = IOWR(98, 1, 264)
-    binderctrlfd = open('/dev/binderfs/binder-control','rb')
+    binderctrlfd = open(tools.config.defaults(args, "binderfs") + '/binder-control','rb')
 
     for node in binder_dev_nodes:
         node_struct = struct.pack(
@@ -98,13 +98,14 @@ def probeBinderDriver(args):
                 logging.error(output.strip())
 
         if isBinderfsLoaded(args):
-            command = ["mkdir", "-p", "/dev/binderfs"]
+            binderfs_path = tools.config.defaults(args, "binderfs")
+            command = ["mkdir", "-p", binderfs_path]
             tools.helpers.run.user(args, command, check=False)
-            command = ["mount", "-t", "binder", "binder", "/dev/binderfs"]
+            command = ["mount", "-t", "binder", "binder", binderfs_path]
             tools.helpers.run.user(args, command, check=False)
             allocBinderNodes(args, binder_dev_nodes)
             command = ["ln", "-s"]
-            command.extend(glob.glob("/dev/binderfs/*"))
+            command.extend(glob.glob(binderfs_path + "/*"))
             command.append("/dev/")
             tools.helpers.run.user(args, command, check=False)
 

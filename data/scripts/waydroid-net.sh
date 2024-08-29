@@ -5,7 +5,7 @@ SESSION_ID="0"
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --num-sessions)
+        --sid)
             SESSION_ID="$2"
             shift 2
             ;;
