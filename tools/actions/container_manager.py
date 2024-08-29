@@ -46,6 +46,15 @@ class DbusContainerManager(dbus.service.Object):
         self.args.session = self.sessions.pop(session_id)
         stop(self.args, quit_session)
 
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='b', out_signature='')
+    def StopAll(self, quit_session):
+        logging.info("Stopping all containers")
+        for session_id in list(self.sessions.keys()):
+            logging.info(f"Stopping session {session_id}")
+            self.args.session_id = session_id   
+            self.args.session = self.sessions.pop(session_id)
+            stop(self.args, quit_session)
+
     @dbus.service.method("id.waydro.ContainerManager", in_signature='i', out_signature='')
     def Freeze(self, session_id):
         self.args.session_id = session_id
@@ -77,6 +86,13 @@ class DbusContainerManager(dbus.service.Object):
 
 def service(args, looper):
     dbus_obj = DbusContainerManager(looper, dbus.SystemBus(), '/ContainerManager', args)
+    def sigint_handler(data):
+        logging.info("Caught termination signal")
+        dbus_obj.StopAll(True)
+        looper.quit()
+
+    GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, sigint_handler, None)
+    GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, sigint_handler, None)
     looper.run()
 
 def set_permissions(args, perm_list=None, mode="777"):
@@ -112,13 +128,6 @@ def start(args):
         ], "666")
 
         mainloop = GLib.MainLoop()
-
-        def sigint_handler(data):
-        #     stop(args)
-            mainloop.quit()
-
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, sigint_handler, None)
-        GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, sigint_handler, None)
         service(args, mainloop)
     else:
         logging.error("WayDroid container is {}".format(status))
