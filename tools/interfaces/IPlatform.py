@@ -24,9 +24,6 @@ TRANSACTION_settingsPutInt = 11
 TRANSACTION_settingsGetInt = 12
 TRANSACTION_launchIntent = 13
 
-def service_name(args):
-    return SERVICE_NAME + str(args.session_id)
-
 class IPlatform:
     def __init__(self, remote):
         self.client = gbinder.Client(remote, INTERFACE)
@@ -315,15 +312,13 @@ def get_service(args):
 
     tries = 1000
 
-    service_name = SERVICE_NAME + str(args.session_id)
-
-    remote, status = serviceManager.get_service_sync(service_name)
+    remote, status = serviceManager.get_service_sync(SERVICE_NAME)
     while(not remote):
         if tries > 0:
             logging.warning(
-                "Failed to get service {}, trying again...".format(service_name))
+                "Failed to get service {}, trying again...".format(SERVICE_NAME))
             time.sleep(1)
-            remote, status = serviceManager.get_service_sync(service_name)
+            remote, status = serviceManager.get_service_sync(SERVICE_NAME)
             tries = tries - 1
         else:
             return None
