@@ -143,6 +143,7 @@ def set_lxc_config(args):
         raise OSError("LXC is not installed")
     config_paths = tools.config.tools_src + "/data/configs/config_"
     seccomp_profile = tools.config.tools_src + "/data/configs/waydroid.seccomp"
+    seccomp_path = lxc_path + "/waydroid.seccomp"
 
     config_snippets = [ config_paths + "base" ]
     # lxc v1 and v2 are bit special because some options got renamed later
@@ -164,13 +165,14 @@ def set_lxc_config(args):
     uts_name = "lxc.uts.name = " + container_name(args)
     net_link = f"lxc.net.0.link = waydroid{args.session_id}"
     net_hwaddr = f"lxc.net.0.hwaddr = 00:16:3e:f9:d3:0{3+args.session_id}"
+    seccomp_profile = "lxc.seccomp.profile = " + seccomp_path
     config_edits = f"\"{include_config_nodes}\n{include_config_session}\n{rootfs_path}\n{uts_name}\n{net_link}\n{net_hwaddr}\n\""
 
     command = ["sh", "-c", "(cat {}; echo {}) > \"{}\"".format(' '.join('"{0}"'.format(w) for w in config_snippets), config_edits, lxc_path + "/config")]
     tools.helpers.run.user(args, command)
     command = ["sed", "-i", "s/LXCARCH/{}/".format(platform.machine()), lxc_path + "/config"]
     tools.helpers.run.user(args, command)
-    command = ["cp", "-fpr", seccomp_profile, lxc_path + "/waydroid.seccomp"]
+    command = ["cp", "-fpr", seccomp_profile, seccomp_path]
     tools.helpers.run.user(args, command)
     if get_apparmor_status(args):
         command = ["sed", "-i", "-E", "/lxc.aa_profile|lxc.apparmor.profile/ s/unconfined/{}/g".format(LXC_APPARMOR_PROFILE), lxc_path + "/config"]
