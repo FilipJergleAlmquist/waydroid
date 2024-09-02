@@ -299,6 +299,7 @@ class IPlatform:
 def get_service(args):
     helpers.drivers.loadBinderNodes(args)
     binderfs_path = tools.config.defaults(args, "binderfs")
+    logging.info(f"driver {args.BINDER_DRIVER}, service manager protocol {args.SERVICE_MANAGER_PROTOCOL}, binder protocol {args.BINDER_PROTOCOL}")
     try:
         serviceManager = gbinder.ServiceManager(binderfs_path + args.BINDER_DRIVER, args.SERVICE_MANAGER_PROTOCOL, args.BINDER_PROTOCOL)
     except TypeError:

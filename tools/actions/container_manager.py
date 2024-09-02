@@ -23,7 +23,7 @@ class DbusContainerManager(dbus.service.Object):
         self.sessions = {}
         dbus.service.Object.__init__(self, bus, object_path)
 
-    @dbus.service.method("id.waydro.ContainerManager", in_signature='ia{ss}', out_signature='', sender_keyword="sender", connection_keyword="conn")
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='ia{ss}', out_signature='i', sender_keyword="sender", connection_keyword="conn")
     def Start(self, session_id, session, sender, conn):
         self.args.session_id = session_id
 
@@ -39,6 +39,7 @@ class DbusContainerManager(dbus.service.Object):
             raise RuntimeError(f"Already tracking a session {session_id}")
         
         self.sessions[session_id] = do_start(self.args, session)
+        return self.args.container_pid
 
     @dbus.service.method("id.waydro.ContainerManager", in_signature='ib', out_signature='')
     def Stop(self, session_id, quit_session):
@@ -171,9 +172,10 @@ def do_start(args, session):
     cfg = tools.config.load(args)
     helpers.images.mount_rootfs(args, cfg["waydroid"]["images_path"], session)
     helpers.protocol.set_aidl_version(args)
-    helpers.lxc.start(args)
+    container_process = helpers.lxc.start(args)
 
     args.session = session
+    args.container_pid = container_process.pid
 
     return session
 

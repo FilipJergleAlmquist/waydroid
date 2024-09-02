@@ -410,10 +410,11 @@ def wait_for_running(args):
 def start(args):
     command = ["lxc-start", "-P", tools.config.defaults(args, "lxc"),
                "-F", "-n", container_name(args), "--", "/init"]
-    tools.helpers.run.user(args, command, output="background")
+    container_process = tools.helpers.run.user(args, command, output="background")
     wait_for_running(args)
     # Workaround lxc-start changing stdout/stderr permissions to 700
     os.chmod(args.log, 0o666)
+    return container_process
 
 def stop(args):
     command = ["lxc-stop", "-P",
