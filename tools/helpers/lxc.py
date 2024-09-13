@@ -165,8 +165,8 @@ def set_lxc_config(args):
     uts_name = "lxc.uts.name = " + container_name(args)
     net_link = f"lxc.net.0.link = waydroid{args.session_id}"
     net_hwaddr = f"lxc.net.0.hwaddr = 00:16:3e:f9:d3:0{3+args.session_id}"
-    seccomp_profile = "lxc.seccomp.profile = " + seccomp_path
-    config_edits = f"\"{include_config_nodes}\n{include_config_session}\n{rootfs_path}\n{uts_name}\n{net_link}\n{net_hwaddr}\n\""
+    seccomp = "lxc.seccomp.profile = " + seccomp_path
+    config_edits = f"\"{include_config_nodes}\n{include_config_session}\n{rootfs_path}\n{uts_name}\n{net_link}\n{net_hwaddr}\n{seccomp}\n\""
 
     command = ["sh", "-c", "(cat {}; echo {}) > \"{}\"".format(' '.join('"{0}"'.format(w) for w in config_snippets), config_edits, lxc_path + "/config")]
     tools.helpers.run.user(args, command)

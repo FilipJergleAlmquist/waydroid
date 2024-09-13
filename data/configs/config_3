@@ -1,5 +1,5 @@
 lxc.apparmor.profile = unconfined
-lxc.seccomp.profile = /var/lib/waydroid/lxc/waydroid/waydroid.seccomp
+# lxc.seccomp.profile = /var/lib/waydroid/lxc/waydroid/waydroid.seccomp
 
 lxc.no_new_privs = 1
 
