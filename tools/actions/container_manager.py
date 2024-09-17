@@ -102,6 +102,33 @@ def set_permissions(args, perm_list=None, mode="777"):
             command = ["chmod", mode, "-R", path]
             tools.helpers.run.user(args, command, check=False)
 
+        # Nodes list
+    if not perm_list:
+        perm_list = [
+            "/dev/ashmem",
+
+            # sw_sync for HWC
+            "/dev/sw_sync",
+            "/sys/kernel/debug/sync/sw_sync",
+
+            # Media
+            "/dev/Vcodec",
+            "/dev/MTK_SMI",
+            "/dev/mdp_sync",
+            "/dev/mtk_cmdq",
+
+            # Graphics
+            "/dev/dri",
+            "/dev/graphics",
+            "/dev/pvr_sync",
+            "/dev/ion",
+        ]
+
+        # Framebuffers
+        perm_list.extend(glob.glob("/dev/fb*"))
+        # Videos
+        perm_list.extend(glob.glob("/dev/video*"))
+
     for path in perm_list:
         chmod(path, mode)
 
@@ -203,11 +230,11 @@ def stop(args, quit_session=True):
             pass
 
         if "session" in args:
-            if quit_session:
-                try:
-                    os.kill(int(args.session["pid"]), signal.SIGUSR1)
-                except:
-                    pass
+            # if quit_session:
+            #     try:
+            #         os.kill(int(args.session["pid"]), signal.SIGTERM)
+            #     except:
+            #         pass
             del args.session
     except:
         pass
