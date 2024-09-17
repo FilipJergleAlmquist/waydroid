@@ -134,6 +134,9 @@ def make_prop(args, cfg, full_props_path):
             props.append(key + "=" + value)
 
     props.append(f"waydroid.host.session_id={args.session_id}")
+    props.append("persist.waydroid.multi_windows=true")
+    props.append("persist.waydroid.uevent=true")
+    props.append("persist.waydroid.edge_integration=true")
     add_prop("waydroid.host.user", "user_name")
     add_prop("waydroid.host.uid", "user_id")
     add_prop("waydroid.host.gid", "group_id")
