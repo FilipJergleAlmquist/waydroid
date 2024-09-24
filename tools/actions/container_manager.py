@@ -43,9 +43,10 @@ class DbusContainerManager(dbus.service.Object):
 
     @dbus.service.method("id.waydro.ContainerManager", in_signature='ib', out_signature='')
     def Stop(self, session_id, quit_session):
-        self.args.session_id = session_id
-        self.args.session = self.sessions.pop(session_id)
-        stop(self.args, quit_session)
+        if session_id in self.sessions:
+            self.args.session_id = session_id
+            stop(self.args, quit_session)
+            self.args.session = self.sessions.pop(session_id)
 
     @dbus.service.method("id.waydro.ContainerManager", in_signature='b', out_signature='')
     def StopAll(self, quit_session):
@@ -53,8 +54,8 @@ class DbusContainerManager(dbus.service.Object):
         for session_id in list(self.sessions.keys()):
             logging.info(f"Stopping session {session_id}")
             self.args.session_id = session_id   
-            self.args.session = self.sessions.pop(session_id)
             stop(self.args, quit_session)
+            self.args.session = self.sessions.pop(session_id)
 
     @dbus.service.method("id.waydro.ContainerManager", in_signature='i', out_signature='')
     def Freeze(self, session_id):
@@ -84,6 +85,11 @@ class DbusContainerManager(dbus.service.Object):
             self.sessions[session_id] = new_session
             logging.info(f"created new session {session_id}, {session}")
             return new_session
+
+    @dbus.service.method("id.waydro.ContainerManager", in_signature='i', out_signature='b')
+    def IsContainerRunning(self, session_id):
+        return session_id in self.sessions
+
 
 def service(args, looper):
     dbus_obj = DbusContainerManager(looper, dbus.SystemBus(), '/ContainerManager', args)
@@ -186,6 +192,8 @@ def do_start(args, session):
                "/data/scripts/waydroid-net.sh", "start", "--sid", str(args.session_id)]
     # if args.session_id == 0:
     tools.helpers.run.user(args, command)
+
+    set_permissions(args)
 
     # Create session-specific LXC config file
     helpers.lxc.generate_session_lxc_config(args, session)
